@@ -47,7 +47,7 @@ const sleep =  (ms) =>{
         type = 'not animated sticker'
       }
   
-      let msg = `   MICKEY-MD STICKER ID
+      let msg = `   ⓐⓝⓓⓑⓐⓓ-ⓢⓣⓘⓒⓚⓔⓡ-ⓓⓛ
       
   *Name :* ${stickers.data.result.name}
   *Type :* ${type} 
@@ -70,7 +70,7 @@ const sleep =  (ms) =>{
   
           const sticker = new Sticker(buffer.data, {
             pack: nomAuteurMessage,
-            author: "MICKEY-MD",
+            author: "ⓐⓝⓓⓑⓐⓓ",
             type: StickerTypes.FULL,
             categories: ['🤩', '🎉'],
             id: '12345',
@@ -493,6 +493,71 @@ if (!superUser) {repondre('This command is only allowed to the bot owner') ; ret
   }
 });
 
+// HANS VV
+
+zokou({ nomCom: "Hansvv", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { repondre, msgRepondu, superUser, auteurMessage, msg } = commandeOptions;
+
+  if (superUser) {
+    
+    if (msgRepondu) {
+      console.log(msgRepondu);
+
+      let sendMessageData;
+
+      if (msgRepondu.imageMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.imageMessage);
+        sendMessageData = {
+          image: { url: media },
+          caption: msgRepondu.imageMessage.caption || '',
+        };
+
+      } else if (msgRepondu.videoMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.videoMessage);
+        sendMessageData = {
+          video: { url: media },
+          caption: msgRepondu.videoMessage.caption || '',
+        };
+
+      } else if (msgRepondu.audioMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.audioMessage);
+        sendMessageData = {
+          audio: { url: media },
+          mimetype: 'audio/mp4',
+        };
+
+      } else if (msgRepondu.stickerMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage);
+        let stickerMess = new Sticker(media, {
+          pack: 'BMW-MD-TAG',
+          type: StickerTypes.CROPPED,
+          categories: ["🤩", "🎉"],
+          id: "12345",
+          quality: 70,
+          background: "transparent",
+        });
+        const stickerBuffer2 = await stickerMess.toBuffer();
+        sendMessageData = { sticker: stickerBuffer2 };
+
+      } else {
+        sendMessageData = {
+          text: msgRepondu.conversation || 'No text found.',
+        };
+      }
+
+      // Send the message back to the original chat (not to DM)
+      zk.sendMessage(dest, sendMessageData, { quoted: msg });
+
+    } else {
+      repondre('Mention the message that you want to save');
+    }
+
+  } else {
+    repondre('Only mods can use this command');
+  }
+
+});
 
 zokou({ nomCom: "save", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
 
@@ -547,7 +612,7 @@ zokou({ nomCom: "save", categorie: "Mods" }, async (dest, zk, commandeOptions) =
           let media  = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage)
   
           let stickerMess = new Sticker(media, {
-            pack: 'Mickey-MD-TAG',
+            pack: 'BMW-MD-TAG',
             type: StickerTypes.CROPPED,
             categories: ["🤩", "🎉"],
             id: "12345",
