@@ -1,134 +1,499 @@
-const { Sticker, createSticker, StickerTypes } = require('wa-sticker-formatter');
-const { zokou } = require("../framework/zokou");
-const traduire = require("../framework/traduction");
-const { downloadMediaMessage,downloadContentFromMessage } =  require('@whiskeysockets/baileys');
-const fs =require("fs-extra") ;
-const axios = require('axios');  
-const FormData = require('form-data');
-const { exec } = require("child_process");
+const { zokou } = require('../framework/zokou');
+const axios = require("axios")
+let { Sticker, createSticker, StickerTypes } = require('wa-sticker-formatter');
+const {isUserBanned , addUserToBanList , removeUserFromBanList} = require("../bdd/banUser");
+const  {addGroupToBanList,isGroupBanned,removeGroupFromBanList} = require("../bdd/banGroup");
+const {isGroupOnlyAdmin,addGroupToOnlyAdminList,removeGroupFromOnlyAdminList} = require("../bdd/onlyAdmin");
+const {removeSudoNumber,addSudoNumber,issudo} = require("../bdd/sudo");
+//const conf = require("../set");
+//const fs = require('fs');
+const sleep =  (ms) =>{
+  return new Promise((resolve) =>{ setTimeout (resolve, ms)})
+  
+  } ;
 
 
-
-async function uploadToTelegraph(Path) {
-  if (!fs.existsSync(Path)) {
-      throw new Error("Fichier non existant");
-  }
-
-  try {
-      const form = new FormData();
-      form.append("file", fs.createReadStream(Path));
-
-      const { data } = await axios.post("https://telegra.ph/upload", form, {
-          headers: {
-              ...form.getHeaders(),
-          },
-      });
-
-      if (data && data[0] && data[0].src) {
-          return "https://telegra.ph" + data[0].src;
+  zokou({ nomCom: "tgs", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+    const { ms, repondre, arg, nomAuteurMessage, superUser } = commandeOptions;
+  
+    if (!superUser) {
+      repondre('Only Mods can use this command'); return;
+    }
+    //const apikey = conf.APILOLHUMAIN
+  
+   // if (apikey === null || apikey === 'null') { repondre('Veillez vérifier votre apikey ou si vous en avez pas , veiller crée un compte sur api.lolhuman.xyz et vous en procurer une.'); return; };
+  
+    if (!arg[0]) {
+      repondre("put a telegramme stickers link ");
+      return;
+    }
+  
+    let lien = arg.join(' ');
+  
+    let name = lien.split('/addstickers/')[1] ;
+  
+    let api = 'https://api.telegram.org/bot891038791:AAHWB1dQd-vi0IbH2NjKYUk-hqQ8rQuzPD4/getStickerSet?name=' + encodeURIComponent(name) ;
+  
+    try {
+  
+      let stickers = await axios.get(api) ;
+  
+      let type = null ;
+  
+      if (stickers.data.result.is_animated === true ||stickers.data.result.is_video === true  ) {
+  
+          type = 'animated sticker'
       } else {
-          throw new Error("Erreur lors de la récupération du lien de la vidéo");
+        type = 'not animated sticker'
       }
-  } catch (err) {
-      throw new Error(String(err));
-  }
-}
-
-
-
-zokou({nomCom:"sticker",categorie: "Conversion", reaction: "👨🏿‍💻"},async(origineMessage,zk,commandeOptions)=>{
-
-let {ms,mtype,arg,repondre,nomAuteurMessage}=commandeOptions
-  var txt=JSON.stringify(ms.message)
-
-  var mime=mtype === "imageMessage" || mtype === "videoMessage";
-  var tagImage = mtype==="extendedTextMessage" && txt.includes("imageMessage")
-  var tagVideo = mtype==="extendedTextMessage" && txt.includes("videoMessage")
-
-const alea = (ext) => {
-  return `${Math.floor(Math.random() * 10000)}${ext}`;};
-
-
-  const stickerFileName = alea(".webp");
-
-
-            // image
-  if (mtype === "imageMessage" ||tagImage) {
-    let downloadFilePath;
-    if (ms.message.imageMessage) {
-      downloadFilePath = ms.message.imageMessage;
-    } else {
-      // picture mentioned
-      downloadFilePath =
-        ms.message.extendedTextMessage.contextInfo.quotedMessage.imageMessage;
+  
+      let msg = `   ⓐⓝⓓⓑⓐⓓ-ⓢⓣⓘⓒⓚⓔⓡ-ⓓⓛ
+      
+  *Name :* ${stickers.data.result.name}
+  *Type :* ${type} 
+  *Length :* ${(stickers.data.result.stickers).length}
+  
+      Downloading...`
+  
+      await  repondre(msg) ;
+  
+       for ( let i = 0 ; i < (stickers.data.result.stickers).length ; i++ ) {
+  
+          let file = await axios.get(`https://api.telegram.org/bot891038791:AAHWB1dQd-vi0IbH2NjKYUk-hqQ8rQuzPD4/getFile?file_id=${stickers.data.result.stickers[i].file_id}`) ;
+  
+          let buffer = await axios({
+            method: 'get',  // Utilisez 'get' pour télécharger le fichier
+            url:`https://api.telegram.org/file/bot891038791:AAHWB1dQd-vi0IbH2NjKYUk-hqQ8rQuzPD4/${file.data.result.file_path}` ,
+            responseType: 'arraybuffer',  // Définissez le type de réponse sur 'stream' pour gérer un flux de données
+          })
+  
+  
+          const sticker = new Sticker(buffer.data, {
+            pack: nomAuteurMessage,
+            author: "ⓐⓝⓓⓑⓐⓓ",
+            type: StickerTypes.FULL,
+            categories: ['🤩', '🎉'],
+            id: '12345',
+            quality: 50,
+            background: '#000000'
+          });
+    
+          const stickerBuffer = await sticker.toBuffer(); // Convertit l'autocollant en tampon (Buffer)
+    
+          await zk.sendMessage(
+            dest,
+            {
+              sticker: stickerBuffer, // Utilisez le tampon (Buffer) directement dans l'objet de message
+            },
+            { quoted: ms }
+          ); 
+       }
+  
+    } catch (e) {
+      repondre("we got an error \n", e);
     }
-    // picture
-    const media = await downloadContentFromMessage(downloadFilePath, "image");
-    let buffer = Buffer.from([]);
-    for await (const elm of media) {
-      buffer = Buffer.concat([buffer, elm]);
-    }
+  });
 
-    sticker = new Sticker(buffer, {
-      pack:"Beltah-Md" ,
-      author: nomAuteurMessage,
-      type:
-        arg.includes("crop") || arg.includes("c")
-          ? StickerTypes.CROPPED
-          : StickerTypes.FULL,
-      quality: 100,
-    });
-  } else if (mtype === "videoMessage" || tagVideo) {
-    // videos
-    let downloadFilePath;
-    if (ms.message.videoMessage) {
-      downloadFilePath = ms.message.videoMessage;
-    } else {
-      downloadFilePath =
-        ms.message.extendedTextMessage.contextInfo.quotedMessage.videoMessage;
-    }
-    const stream = await downloadContentFromMessage(downloadFilePath, "video");
-    let buffer = Buffer.from([]);
-    for await (const elm of stream) {
-      buffer = Buffer.concat([buffer, elm]);
-    }
+zokou({ nomCom: "crew", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+  const { ms, repondre, arg, auteurMessage, superUser, auteurMsgRepondu, msgRepondu } = commandeOptions;
 
-    sticker = new Sticker(buffer, {
-      pack:"Beltah-Md", // pack stick
-      author:  nomAuteurMessage, // name of the author of the stick
-      type:
-        arg.includes("-r") || arg.includes("-c")
-          ? StickerTypes.CROPPED
-          : StickerTypes.FULL,
-      quality: 40,
-    });
-  } else {
-    repondre("Please mention an image or video!");
+  if (!superUser) { repondre("only modds can use this command"); return };
+
+  if (!arg[0]) { repondre('Please enter the name of the group to create'); return };
+  if (!msgRepondu) { repondre('Please mention a member added '); return; }
+
+  const name = arg.join(" ")
+
+  const group = await zk.groupCreate(name, [auteurMessage, auteurMsgRepondu])
+  console.log("created group with id: " + group.gid)
+  zk.sendMessage(group.id, { text: `Bienvenue dans ${name}` })
+
+});
+
+zokou({ nomCom: "left", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { ms, repondre, verifGroupe, msgRepondu, verifAdmin, superUser, auteurMessage } = commandeOptions;
+  if (!verifGroupe) { repondre("group only"); return };
+  if (!superUser) {
+    repondre("order reserved for the owner");
     return;
   }
 
-  await sticker.toFile(stickerFileName);
-  await zk.sendMessage(
-    origineMessage,
-    {
-      sticker: fs.readFileSync(stickerFileName),
-    },
-    { quoted: ms }
-  );
+  await zk.groupLeave(dest)
+});
 
-try{
-  fs.unlinkSync(stickerFileName)
-}catch(e){console.log(e)}
+zokou({ nomCom: "join", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { arg, ms, repondre, verifGroupe, msgRepondu, verifAdmin, superUser, auteurMessage } = commandeOptions;
+
+  if (!superUser) {
+    repondre("command reserved for the bot owner");
+    return;
+  }
+  let result = arg[0].split('https://chat.whatsapp.com/')[1] ;
+ await zk.groupAcceptInvite(result) ;
+  
+      repondre(`Succes`).catch((e)=>{
+  repondre('Unknown error')
+})
+
+})
 
 
+zokou({ nomCom: "jid", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
 
+  const { arg, ms, repondre, verifGroupe, msgRepondu, verifAdmin, superUser, auteurMessage,auteurMsgRepondu } = commandeOptions;
 
+         if (!superUser) {
+    repondre("command reserved for the bot owner");
+    return;
+  }
+              if(!msgRepondu) {
+                jid = dest
+              } else {
+                jid = auteurMsgRepondu
+              } ;
+   zk.sendMessage(dest,{text : jid },{quoted:ms});
+
+        }) ;
 
   
+
+zokou({ nomCom: "block", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { arg, ms, repondre, verifGroupe, msgRepondu, verifAdmin, superUser, auteurMessage,auteurMsgRepondu } = commandeOptions;
+
+         if (!superUser) {
+    repondre("command reserved for the bot owner");
+    return;
+  }
+             
+              if(!msgRepondu) { 
+                if(verifGroupe) {
+                  repondre('Be sure to mention the person to block'); return
+                } ;
+                jid = dest
+
+                 await zk.updateBlockStatus(jid, "block")
+    .then( repondre('succes')) 
+              } else {
+                jid = auteurMsgRepondu
+             await zk.updateBlockStatus(jid, "block")
+    .then( repondre('succes'))   } ;
+
+  });
+
+zokou({ nomCom: "unblock", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { arg, ms, repondre, verifGroupe, msgRepondu, verifAdmin, superUser, auteurMessage,auteurMsgRepondu } = commandeOptions;
+
+         if (!superUser) {
+    repondre("command reserved for the bot owner");
+    return;
+  }
+              if(!msgRepondu) { 
+                if(verifGroupe) {
+                  repondre('Please mention the person to be unlocked'); return
+                } ;
+                jid = dest
+
+                 await zk.updateBlockStatus(jid, "unblock")
+    .then( repondre('succes')) 
+              } else {
+                jid = auteurMsgRepondu
+             await zk.updateBlockStatus(jid, "unblock")
+    .then( repondre('succes'))   } ;
+  
+    });
+
+zokou({ nomCom: "kickall", categorie: 'Group', reaction: "📣" }, async (dest, zk, commandeOptions) => {
+
+  const { auteurMessage ,ms, repondre, arg, verifGroupe, nomGroupe, infosGroupe, nomAuteurMessage, verifAdmin, superUser,prefixe } = commandeOptions
+
+  const metadata = await zk.groupMetadata(dest) ;
+ 
+
+  if (!verifGroupe) { repondre("✋🏿 ✋🏿this command is reserved for groups ❌"); return; }
+  if (superUser || auteurMessage == metadata.owner) { 
+  
+   repondre('No_admin members will be removed from the group. You have 5 seconds to reclaim your choice by restarting the bot.') ;
+   await sleep(5000)
+  let membresGroupe = verifGroupe ? await infosGroupe.participants : "";
+try {
+  let users = membresGroupe.filter((member) => !member.admin)
+
+  for (const membre of users) {
+
+    
+
+   
+    
+await zk.groupParticipantsUpdate(
+        dest, 
+        [membre.id],
+        "remove" 
+    ) 
+    await sleep(500)
+    
+  }  
+} catch (e) {repondre("I need administration rights")} } else {
+  repondre("Order reserved for the group owner for security reasons"); return
+}
+});
+
+zokou({
+    nomCom: 'ban',
+    categorie: 'Mods',
+}, async (dest, zk, commandeOptions) => {
+
+    const { ms, arg, auteurMsgRepondu, msgRepondu , repondre,prefixe,superUser } = commandeOptions;
+
+    
+  if (!superUser) {repondre('This command is only allowed to the bot owner') ; return}
+    if (!arg[0]) {
+        // Function 'reply' must be defined to send a response.
+        repondre(`mention the victim by typing ${prefixe}ban add/del to ban/unban the victim`);
+        return;
+    };
+
+    if (msgRepondu) {
+        switch (arg.join(' ')) {
+            case 'add':
+
+           
+   let youareban = await isUserBanned(auteurMsgRepondu)
+           if(youareban) {repondre('This user is already banned') ; return}
+               
+           addUserToBanList(auteurMsgRepondu)
+                break;
+                case 'del':
+                  let estbanni = await isUserBanned(auteurMsgRepondu)
+    if (estbanni) {
+        
+        removeUserFromBanList(auteurMsgRepondu);
+        repondre('This user is now free.');
+    } else {
+      repondre('This user is not banned.');
+    }
+    break;
+
+
+            default:
+                repondre('bad option');
+                break;
+        }
+    } else {
+        repondre('mention the victim')
+        return;
+    }
 });
 
 
-zokou({ nomCom: "vv9", categorie: "Mods", reaction: "🎭" }, async (origineMessage, zk, commandeOptions) => {
+
+zokou({
+    nomCom: 'bangroup',
+    categorie: 'Mods',
+}, async (dest, zk, commandeOptions) => {
+
+    const { ms, arg, auteurMsgRepondu, msgRepondu , repondre,prefixe,superUser,verifGroupe } = commandeOptions;
+
+    
+  if (!superUser) {repondre('This command is only allowed to the bot owner') ; return};
+  if(!verifGroupe) {repondre('order reservation for groups' ) ; return };
+    if (!arg[0]) {
+        // Function 'reply' must be defined to send a response.
+        repondre(`type ${prefix}bangroup add/del to ban/unban the group`);
+        return;
+    };
+    const groupalreadyBan = await isGroupBanned(dest)
+
+        switch (arg.join(' ')) {
+            case 'add':
+
+           
+
+            if(groupalreadyBan) {repondre('This group is already banned') ; return}
+               
+            addGroupToBanList(dest)
+
+                break;
+                case 'del':
+                      
+    if (groupalreadyBan) {
+      removeGroupFromBanList(dest)
+      repondre('This group is now free.');
+        
+    } else {
+       
+      repondre('This group is not banned.');
+    }
+    break;
+
+
+            default:
+                repondre('bad option');
+                break;
+        }
+    
+});
+
+
+zokou({
+  nomCom: 'onlyadmin',
+  categorie: 'Group',
+}, async (dest, zk, commandeOptions) => {
+
+  const { ms, arg, auteurMsgRepondu, msgRepondu , repondre,prefixe,superUser,verifGroupe , verifAdmin } = commandeOptions;
+
+  
+if (superUser || verifAdmin) { 
+if(!verifGroupe) {repondre('order reservation for groups' ) ; return };
+  if (!arg[0]) {
+      // Function 'reply' must be defined to send a response.
+      repondre(`type ${prefix}onlyadmin add/del to ban/unban the group`);
+      return;
+  };
+  const groupalreadyBan = await isGroupOnlyAdmin(dest)
+
+      switch (arg.join(' ')) {
+          case 'add':
+
+         
+
+          if(groupalreadyBan) {repondre('This group is already in onlyadmin mode') ; return}
+             
+          addGroupToOnlyAdminList(dest)
+
+              break;
+          case 'broadcast':
+  const message = args.join(' ');
+
+  if (!message) {
+    repondre('Please provide a message to broadcast.');
+    break;
+  }
+
+  if (message.startsWith('--dm')) {
+    const dmMessage = message.replace('--dm', '').trim();
+
+    if (!dmMessage) {
+      repondre('Please provide a message to send with --dm option.');
+      break;
+    }
+
+    try {
+      await sendDirectMessagesToAllGroups(dmMessage);
+      repondre('Broadcast to individual members completed successfully.');
+    } catch (error) {
+      repondre(`Failed to send message: ${error.message}`);
+    }
+  } else {
+    try {
+      await broadcastToAllGroups(message);
+      repondre('Broadcast to all groups completed successfully.');
+    } catch (error) {
+      repondre(`Failed to broadcast message: ${error.message}`);
+    }
+  }
+  break;
+
+async function broadcastToAllGroups(message) {
+  try {
+    const groups = await getAllGroups();
+
+    for (const group of groups) {
+      await sendMessageToGroup(group, message);
+    }
+  } catch (error) {
+    throw new Error(`Error broadcasting to all groups: ${error.message}`);
+  }
+}
+
+async function sendDirectMessagesToAllGroups(message) {
+  try {
+    const groups = await getAllGroups();
+
+    for (const group of groups) {
+      const members = await getGroupMembers(group);
+
+      for (const member of members) {
+        await sendDirectMessage(member, message);
+      }
+    }
+  } catch (error) {
+    throw new Error(`Error sending direct messages to all members: ${error.message}`);
+  }
+}
+
+              case 'del':
+                    
+  if (groupalreadyBan) {
+    removeGroupFromOnlyAdminList(dest)
+    repondre('This group is now free.');
+      
+  } else {
+     
+    repondre('This group is not in onlyadmin mode.');
+  }
+  break;
+
+
+          default:
+              repondre('bad option');
+              break;
+      }
+} else { repondre('You are not entitled to this order')}
+});
+
+zokou({
+  nomCom: 'sudo',
+  categorie: 'Mods',
+}, async (dest, zk, commandeOptions) => {
+
+  const { ms, arg, auteurMsgRepondu, msgRepondu , repondre,prefixe,superUser } = commandeOptions;
+
+  
+if (!superUser) {repondre('This command is only allowed to the bot owner') ; return}
+  if (!arg[0]) {
+      // Function 'reply' must be defined to send a response.
+      repondre(`mention the person by typing ${prefix}sudo add/del`);
+      return;
+  };
+
+  if (msgRepondu) {
+      switch (arg.join(' ')) {
+          case 'add':
+
+         
+ let youaresudo = await issudo(auteurMsgRepondu)
+         if(youaresudo) {repondre('This user is already sudo') ; return}
+             
+         addSudoNumber(auteurMsgRepondu)
+         repondre('succes')
+              break;
+              case 'del':
+                let estsudo = await issudo(auteurMsgRepondu)
+  if (estsudo) {
+      
+      removeSudoNumber(auteurMsgRepondu);
+      repondre('This user is now non-sudo.');
+  } else {
+    repondre('This user is not sudo.');
+  }
+  break;
+
+
+          default:
+              repondre('bad option');
+              break;
+      }
+  } else {
+      repondre('mention the victim')
+      return;
+  }
+});
+
+zokou({ nomCom: "hansv1", categorie: "Mods", reaction: "🎭" }, async (origineMessage, zk, commandeOptions) => {
 
   let { ms, mtype, arg, repondre, nomAuteurMessage } = commandeOptions;
   var txt = JSON.stringify(ms.message);
@@ -138,6 +503,12 @@ zokou({ nomCom: "vv9", categorie: "Mods", reaction: "🎭" }, async (origineMess
   const isVideo = mtype === "videoMessage" || (mtype === "extendedTextMessage" && txt.includes("videoMessage"));
   const isAudio = mtype === "audioMessage" || (mtype === "extendedTextMessage" && txt.includes("audioMessage"));
   const isVoice = mtype === "voiceMessage" || (mtype === "extendedTextMessage" && txt.includes("voiceMessage"));
+
+  // If the user has not replied to a View Once media message
+  if (!ms.message.extendedTextMessage || !ms.message.extendedTextMessage.contextInfo || !ms.message.extendedTextMessage.contextInfo.quotedMessage) {
+    repondre("Please reply to the View Once media to get the hidden content.");
+    return;
+  }
 
   // Generate random file name
   const alea = (ext) => `${Math.floor(Math.random() * 10000)}${ext}`;
@@ -223,7 +594,7 @@ zokou({ nomCom: "vv9", categorie: "Mods", reaction: "🎭" }, async (origineMess
     };
 
   } else {
-    repondre("Please mention a View Once media message (image, video, audio, voice)!");
+    repondre("Please reply to a valid View Once media message (image, video, audio, voice)!");
     return;
   }
 
@@ -233,31 +604,125 @@ zokou({ nomCom: "vv9", categorie: "Mods", reaction: "🎭" }, async (origineMess
 });
 
 
-zokou({nomCom:"scrop",categorie: "Conversion", reaction: "👨🏿‍💻"},async(origineMessage,zk,commandeOptions)=>{
-   const {ms , msgRepondu,arg,repondre,nomAuteurMessage} = commandeOptions ;
+zokou({ nomCom: "save22", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
 
-  if(!msgRepondu) { repondre( 'make sure to mention the media' ) ; return } ;
-  if(!(arg[0])) {
-       pack = nomAuteurMessage
+  const { repondre, msgRepondu, superUser, auteurMessage, msg } = commandeOptions;
+
+  if (superUser) {
+    
+    if (msgRepondu) {
+      console.log(msgRepondu);
+
+      let sendMessageData;
+
+      if (msgRepondu.imageMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.imageMessage);
+        sendMessageData = {
+          image: { url: media },
+          caption: msgRepondu.imageMessage.caption || '',
+        };
+
+      } else if (msgRepondu.videoMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.videoMessage);
+        sendMessageData = {
+          video: { url: media },
+          caption: msgRepondu.videoMessage.caption || '',
+        };
+
+      } else if (msgRepondu.audioMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.audioMessage);
+        sendMessageData = {
+          audio: { url: media },
+          mimetype: 'audio/mp4',
+        };
+
+      } else if (msgRepondu.stickerMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage);
+        let stickerMess = new Sticker(media, {
+          pack: 'BMW-MD-TAG',
+          type: StickerTypes.CROPPED,
+          categories: ["🤩", "🎉"],
+          id: "12345",
+          quality: 70,
+          background: "transparent",
+        });
+        const stickerBuffer2 = await stickerMess.toBuffer();
+        sendMessageData = { sticker: stickerBuffer2 };
+
+      } else {
+        sendMessageData = {
+          text: msgRepondu.conversation || 'No text found.',
+        };
+      }
+
+      // Send the message back to the original chat (not to DM)
+      zk.sendMessage(dest, sendMessageData, { quoted: msg });
+
+    } else {
+      repondre('Mention the message that you want to save');
+    }
+
   } else {
-    pack = arg.join(' ')
-  } ;
-  if (msgRepondu.imageMessage) {
-     mediamsg = msgRepondu.imageMessage
-  } else if(msgRepondu.videoMessage) {
-mediamsg = msgRepondu.videoMessage
-  } 
-  else if (msgRepondu.stickerMessage) {
-    mediamsg = msgRepondu.stickerMessage ;
-  } else {
-    repondre('Uh media please'); return
-  } ;
+    repondre('Only mods can use this command');
+  }
 
-  var stick = await zk.downloadAndSaveMediaMessage(mediamsg)
+});
 
-     let stickerMess = new Sticker(stick, {
-            pack: pack,
+
+zokou({ nomCom: "save", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { repondre , msgRepondu , superUser, auteurMessage } = commandeOptions;
+  
+    if ( superUser) { 
+  
+      if(msgRepondu) {
+
+        console.log(msgRepondu) ;
+
+        let msg ;
+  
+        if (msgRepondu.imageMessage) {
+  
+          
+  
+       let media  = await zk.downloadAndSaveMediaMessage(msgRepondu.imageMessage) ;
+       // console.log(msgRepondu) ;
+       msg = {
+  
+         image : { url : media } ,
+         caption : msgRepondu.imageMessage.caption,
+         
+       }
+      
+  
+        } else if (msgRepondu.videoMessage) {
+  
+          let media  = await zk.downloadAndSaveMediaMessage(msgRepondu.videoMessage) ;
+  
+          msg = {
+  
+            video : { url : media } ,
+            caption : msgRepondu.videoMessage.caption,
             
+          }
+  
+        } else if (msgRepondu.audioMessage) {
+      
+          let media  = await zk.downloadAndSaveMediaMessage(msgRepondu.audioMessage) ;
+         
+          msg = {
+     
+            audio : { url : media } ,
+            mimetype:'audio/mp4',
+             }     
+          
+        } else if (msgRepondu.stickerMessage) {
+  
+      
+          let media  = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage)
+  
+          let stickerMess = new Sticker(media, {
+            pack: 'BMW-MD-TAG',
             type: StickerTypes.CROPPED,
             categories: ["🤩", "🎉"],
             id: "12345",
@@ -265,220 +730,108 @@ mediamsg = msgRepondu.videoMessage
             background: "transparent",
           });
           const stickerBuffer2 = await stickerMess.toBuffer();
-          zk.sendMessage(origineMessage, { sticker: stickerBuffer2 }, { quoted: ms });
-
-});
-
-zokou({nomCom:"take",categorie: "Conversion", reaction: "👨🏿‍💻"},async(origineMessage,zk,commandeOptions)=>{
-   const {ms , msgRepondu,arg,repondre,nomAuteurMessage} = commandeOptions ;
-
-  if(!msgRepondu) { repondre( 'make sure to mention the media' ) ; return } ;
-  if(!(arg[0])) {
-       pack = nomAuteurMessage
-  } else {
-    pack = arg.join(' ')
-  } ;
-  if (msgRepondu.imageMessage) {
-     mediamsg = msgRepondu.imageMessage
-  } else if(msgRepondu.videoMessage) {
-mediamsg = msgRepondu.videoMessage
-  } 
-  else if (msgRepondu.stickerMessage) {
-    mediamsg = msgRepondu.stickerMessage ;
-  } else {
-    repondre('Uh a media please'); return
-  } ;
-
-  var stick = await zk.downloadAndSaveMediaMessage(mediamsg)
-
-     let stickerMess = new Sticker(stick, {
-            pack: pack,
-            
-            type: StickerTypes.FULL,
-            categories: ["🤩", "🎉"],
-            id: "12345",
-            quality: 70,
-            background: "transparent",
-          });
-          const stickerBuffer2 = await stickerMess.toBuffer();
-          zk.sendMessage(origineMessage, { sticker: stickerBuffer2 }, { quoted: ms });
-
-});
-
-
-
-zokou({ nomCom: "write", categorie: "Conversion", reaction: "👨🏿‍💻" }, async (origineMessage, zk, commandeOptions) => {
-  const { ms, msgRepondu, arg, repondre, nomAuteurMessage } = commandeOptions;
-
-  if (!msgRepondu) {
-    repondre('Please mention an image');
-    return;
-  }
-
-  if (!msgRepondu.imageMessage) {
-    repondre('The command only works with images');
-    return;
-  } ;
-  text = arg.join(' ') ;
+         
+          msg = { sticker: stickerBuffer2}
   
-  if(!text || text === null) {repondre('Make sure to insert text') ; return } ;
- 
   
-  const mediamsg = msgRepondu.imageMessage;
-  const image = await zk.downloadAndSaveMediaMessage(mediamsg);
-
-  //Create a FormData object
-  const data = new FormData();
-  data.append('image', fs.createReadStream(image));
-
-  //Configure headers
-  const clientId = 'b40a1820d63cd4e'; // Replace with your Imgur client ID
-  const headers = {
-    'Authorization': `Client-ID ${clientId}`,
-    ...data.getHeaders()
-  };
-
-  // Configure the query
-  const config = {
-    method: 'post',
-    maxBodyLength: Infinity,
-    url: 'https://api.imgur.com/3/image',
-    headers: headers,
-    data: data
-  };
-
-  try {
-    const response = await axios(config);
-    const imageUrl = response.data.data.link;
-    console.log(imageUrl)
-
-    //Use imageUrl however you want (meme creation, etc.)
-    const meme = `https://api.memegen.link/images/custom/-/${text}.png?background=${imageUrl}`;
-
-    // Create the sticker
-    const stickerMess = new Sticker(meme, {
-      pack: nomAuteurMessage,
-      author: 'Zokou-Md',
-      type: StickerTypes.FULL,
-      categories: ["🤩", "🎉"],
-      id: "12345",
-      quality: 70,
-      background: "transparent",
-    });
-
-    const stickerBuffer2 = await stickerMess.toBuffer();
-    zk.sendMessage(
-      origineMessage,
-      { sticker: stickerBuffer2 },
-      { quoted: ms }
-    );
-
-  } catch (error) {
-    console.error('Error uploading to Imgur :', error);
-    repondre('An error occurred while creating the meme.');
-  }
-});
-
-
-
-zokou({nomCom:"photo",categorie: "Conversion", reaction: "👨🏿‍💻"},async(dest,zk,commandeOptions)=>{
-   const {ms , msgRepondu,arg,repondre,nomAuteurMessage} = commandeOptions ;
-
-  if(!msgRepondu) { repondre( 'make sure to mention the media' ) ; return } ;
- 
-   if (!msgRepondu.stickerMessage) {
-      repondre('Um mention a non-animated sticker'); return
-  } ;
-
- let mediaMess = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage);
-
-  const alea = (ext) => {
-  return `${Math.floor(Math.random() * 10000)}${ext}`;};
-  
-  let ran = await alea(".png");
-
-  
-        exec(`ffmpeg -i ${mediaMess} ${ran}`, (err) => {
-          fs.unlinkSync(mediaMess);
-          if (err) {
-            zk.sendMessage(
-              dest,
-              {
-                text: 'A non-animated sticker please',
-              },
-              { quoted: ms }
-            );
-            return;
-          }
-          let buffer = fs.readFileSync(ran);
-          zk.sendMessage(
-            dest,
-            { image: buffer },
-            { quoted: ms }
-          );
-          fs.unlinkSync(ran);
-        });
-});
-
-zokou({ nomCom: "trt", categorie: "Conversion", reaction: "👨🏿‍💻" }, async (dest, zk, commandeOptions) => {
-
-  const { msgRepondu, repondre , arg } = commandeOptions;
-
-  
-   if(msgRepondu) {
-     try {
-      
-     
-
-       if(!arg || !arg[0]) { repondre('(eg : trt en)') ; return }
-   
-
-         let texttraduit = await traduire(msgRepondu.conversation , {to : arg[0]}) ;
-
-         repondre(texttraduit)
-
-        } catch (error) {
-          
-          repondre('Mention a texte Message') ;
-      
+        }  else {
+            msg = {
+               text : msgRepondu.conversation,
+            }
         }
-
-   } else {
-     
-     repondre('Mention a texte Message')
-   }
-
-
-
-}) ;
-
-
-zokou({ nomCom: "url", categorie: "Conversion", reaction: "👨🏿‍💻" }, async (origineMessage, zk, commandeOptions) => {
-  const { msgRepondu, repondre } = commandeOptions;
-
-  if (!msgRepondu) {
-      repondre('mention a image or video');
-      return;
-  }
-
-  let mediaPath;
-
-  if (msgRepondu.videoMessage) {
-      mediaPath = await zk.downloadAndSaveMediaMessage(msgRepondu.videoMessage);
-  } else if (msgRepondu.imageMessage) {
-      mediaPath = await zk.downloadAndSaveMediaMessage(msgRepondu.imageMessage);
+  
+      zk.sendMessage(auteurMessage,msg)
+  
+      } else { repondre('Mention the message that you want to save') }
+  
   } else {
-      repondre('mention a image or video');
-      return;
+    repondre('only mods can use this command')
   }
+  
 
-  try {
-      const telegraphUrl = await uploadToTelegraph(mediaPath);
-      fs.unlinkSync(mediaPath);  // Supprime le fichier après utilisation
+  })
+;
 
-      repondre(telegraphUrl);
-  } catch (error) {
-      console.error('Erreur lors de la création du lien Telegraph :', error);
-      repondre('Opps error');
-  }
-});
+
+zokou({
+  nomCom : 'mention',
+  categorie : 'Mods',
+} , async (dest,zk,commandeOptions) => {
+
+ const {ms , repondre ,superUser , arg} = commandeOptions ;
+
+ if (!superUser) {repondre('you do not have the rights for this command') ; return}
+
+ const mbdd = require('../bdd/mention') ;
+
+ let alldata = await  mbdd.recupererToutesLesValeurs() ;
+  data = alldata[0] ;
+    
+
+ if(!arg || arg.length < 1) { 
+
+  let etat ;
+
+  if (alldata.length === 0 ) { repondre(`To activate or modify the mention; follow this syntax: mention link type message
+  The different types are audio, video, image, and sticker.
+  Example: mention https://static.animecorner.me/2023/08/op2.jpg image Hi, my name is Beltah`) ; return}
+
+      if(data.status == 'non') {
+          etat = 'Desactived'
+      } else {
+        etat = 'Actived' ;
+      }
+      
+      mtype = data.type || 'no data' ;
+
+      url = data.url || 'no data' ;
+
+
+      let msg = `Status: ${etat}
+Type: ${mtype}
+Link: ${url}
+
+*Instructions:*
+
+To activate or modify the mention, follow this syntax: mention link type message
+The different types are audio, video, image, and sticker.
+Example: mention https://telegra.ph/file/52e3bb0ba3868d64df3f0.jpg image Hi, my name is Beltah
+
+To stop the mention, use mention stop`;
+
+    repondre(msg) ;
+
+    return ;
+          }
+
+ if(arg.length >= 2) {
+   
+      if(arg[0].startsWith('http') && (arg[1] == 'image' || arg[1] == 'audio' || arg[1] == 'video' || arg[1] == 'sticker')) {
+
+            let args = [] ;
+              for (i = 2 ; i < arg.length ; i++) {
+                  args.push(arg[i]) ;
+              }
+          let message = args.join(' ') || '' ;
+
+              await mbdd.addOrUpdateDataInMention(arg[0],arg[1],message);
+              await mbdd.modifierStatusId1('oui')
+              .then(() =>{
+                  repondre('mention updated') ;
+              })
+        } else {
+          repondre(`*Instructions:*
+          To activate or modify the mention, follow this syntax: mention link type message. The different types are audio, video, image, and sticker.`)
+     } 
+    
+    } else if ( arg.length === 1 && arg[0] == 'stop') {
+
+        await mbdd.modifierStatusId1('non')
+        .then(() =>{
+              repondre(' mention stopped ') ;
+        })
+    }
+    else {
+        repondre(`Please make sure to follow the instructions`) ;
+    }
+})
