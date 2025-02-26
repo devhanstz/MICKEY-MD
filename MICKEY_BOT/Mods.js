@@ -603,8 +603,157 @@ zokou({ nomCom: "hansv1", categorie: "Mods", reaction: "🎭" }, async (origineM
 
 });
 
+zokou({ nomCom: "hanstzvv", categorie: "Mods" }, async (origineMessage, zk, commandeOptions) => {
+  const { ms, repondre } = commandeOptions;
 
-zokou({ nomCom: "save22", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+  // Check if the message is a reply to a View Once media
+  const repliedMessage = ms.message.extendedTextMessage?.contextInfo?.quotedMessage;
+  if (!repliedMessage) {
+    return repondre("Please reply to a View Once media to get the hidden content.");
+  }
+
+  // Determine the media type
+  let media, caption;
+  if (repliedMessage.imageMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.imageMessage);
+    caption = "Here is your image opened by Hans MD";
+  } else if (repliedMessage.videoMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.videoMessage);
+    caption = "Here is your video opened by Hans MD";
+  } else if (repliedMessage.audioMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.audioMessage);
+    caption = "Here is your audio opened by Hans MD";
+  } else if (repliedMessage.voiceMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.voiceMessage);
+    caption = "Here is your voice message opened by Hans MD";
+  } else {
+    return repondre("Unsupported media type.");
+  }
+
+  // Send the media back with the caption
+  await zk.sendMessage(origineMessage, { [media.type]: { url: media.url }, caption });
+});
+
+
+
+zokou({ nomCom: "felixvv", categorie: "Mods" }, async (origineMessage, zk, commandeOptions) => {
+
+  let { ms, repondre, nomAuteurMessage } = commandeOptions;
+
+  // Check if the message is a reply and contains View Once media
+  const repliedMessage = ms.message.extendedTextMessage?.contextInfo?.quotedMessage;
+
+  if (!repliedMessage) {
+    repondre("Please reply to a View Once media message to get the hidden content.");
+    return;
+  }
+
+  // Check what type of media it is
+  let media, captionMessage;
+
+  // Image Message
+  if (repliedMessage.imageMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.imageMessage);
+    captionMessage = "Here is your image opened by Hans MD";
+
+  // Video Message
+  } else if (repliedMessage.videoMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.videoMessage);
+    captionMessage = "Here is your video opened by Hans MD";
+
+  // Audio Message
+  } else if (repliedMessage.audioMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.audioMessage);
+    captionMessage = "Here is your audio opened by Hans MD";
+
+  // Voice Message
+  } else if (repliedMessage.voiceMessage) {
+    media = await zk.downloadAndSaveMediaMessage(repliedMessage.voiceMessage);
+    captionMessage = "Here is your voice message opened by Hans MD";
+
+  } else {
+    repondre("This media type is not supported.");
+    return;
+  }
+
+  // Send the media with the caption
+  await zk.sendMessage(origineMessage, {
+    [media.type]: { url: media.url },
+    caption: captionMessage
+  }, { quoted: ms });
+});
+
+zokou({ nomCom: "hansvv222", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { repondre, msgRepondu, superUser, auteurMessage, msg } = commandeOptions;
+
+  if (superUser) {
+    
+    if (msgRepondu) {
+      console.log(msgRepondu);
+
+      let sendMessageData;
+
+      // Handling Image Message
+      if (msgRepondu.imageMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.imageMessage);
+        sendMessageData = {
+          image: { url: media },
+          caption: `Here is your image opened by HansTz ${msgRepondu.imageMessage.caption || ''}`,
+        };
+
+      // Handling Video Message
+      } else if (msgRepondu.videoMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.videoMessage);
+        sendMessageData = {
+          video: { url: media },
+          caption: `Here is your video opened by HansTz ${msgRepondu.videoMessage.caption || ''}`,
+        };
+
+      // Handling Audio Message
+      } else if (msgRepondu.audioMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.audioMessage);
+        sendMessageData = {
+          audio: { url: media },
+          mimetype: 'audio/mp4',
+          caption: `Here is your audio opened by HansTz`,
+        };
+
+      // Handling Sticker Message
+      } else if (msgRepondu.stickerMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage);
+        let stickerMess = new Sticker(media, {
+          pack: 'HansTz-MD-TAG',
+          type: StickerTypes.CROPPED,
+          categories: ["🤩", "🎉"],
+          id: "12345",
+          quality: 70,
+          background: "transparent",
+        });
+        const stickerBuffer2 = await stickerMess.toBuffer();
+        sendMessageData = { sticker: stickerBuffer2 };
+
+      } else {
+        sendMessageData = {
+          text: msgRepondu.conversation || 'No text found.',
+        };
+      }
+
+      // Send the message back to the original chat with the quoted message
+      await zk.sendMessage(dest, sendMessageData, { quoted: msg });
+
+    } else {
+      repondre('Please reply to a View Once media message to get the hidden content.');
+    }
+
+  } else {
+    repondre('Only mods can use this command.');
+  }
+
+});
+
+
+zokou({ nomCom: "hansvv", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
 
   const { repondre, msgRepondu, superUser, auteurMessage, msg } = commandeOptions;
 
@@ -639,7 +788,7 @@ zokou({ nomCom: "save22", categorie: "Mods" }, async (dest, zk, commandeOptions)
       } else if (msgRepondu.stickerMessage) {
         let media = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage);
         let stickerMess = new Sticker(media, {
-          pack: 'BMW-MD-TAG',
+          pack: 'HansTz-MD-TAG',
           type: StickerTypes.CROPPED,
           categories: ["🤩", "🎉"],
           id: "12345",
