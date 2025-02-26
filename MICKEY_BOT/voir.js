@@ -94,4 +94,42 @@ zokou({ nomCom: "vv", categorie: "Mods" }, async (dest, zk, commandeOptions) => 
     repondre('Only mods can use this command');
   }
 });
+
+zokou({ nomCom: "vv5", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+  const { repondre, msgRepondu, superUser, auteurMessage } = commandeOptions;
+
+  if (superUser) {
+
+    if (msgRepondu) {
+
+      let msg;
+
+      // Check if the message contains media
+      const media = msgRepondu.message;
+
+      // Handling Image Message
+      if (media.imageMessage) {
+        // Download and save the image
+        let image = await zk.downloadAndSaveMediaMessage(media.imageMessage);
+        msg = {
+          image: { url: image },  // Send the downloaded image
+          caption: media.imageMessage.caption || "", // Include the caption if available
+        };
+
+        // Resend the downloaded media to the same chat where it was opened
+        await zk.sendMessage(auteurMessage, msg);
+
+      } else {
+        return repondre("This type of media is not supported.");
+      }
+
+    } else {
+      repondre("Please reply to a View Once media message to download and resend it.");
+    }
+
+  } else {
+    repondre("Only mods can use this command.");
+  }
+});
+
         
