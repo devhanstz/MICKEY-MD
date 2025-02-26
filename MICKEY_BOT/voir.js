@@ -1,37 +1,6 @@
 const { zokou } = require("../framework/zokou");
 
-zokou({ nomCom: "save2", categorie: "General" }, async (dest, zk, commandeOptions) => {
-  const { ms, repondre } = commandeOptions;
-
-  if (!ms) {
-    return repondre("*Please mention the media to download and resend.*");
-  }
-
-  let media = ms.message;
-
-  if (media.imageMessage) {
-    let image = await zk.downloadAndSaveMediaMessage(media.imageMessage);
-    await zk.sendMessage(dest, { image: { url: image }, caption: media.imageMessage.caption || "" });
-
-  } else if (media.videoMessage) {
-    let video = await zk.downloadAndSaveMediaMessage(media.videoMessage);
-    await zk.sendMessage(dest, { video: { url: video }, caption: media.videoMessage.caption || "" });
-
-  } else if (media.audioMessage) {
-    let audio = await zk.downloadAndSaveMediaMessage(media.audioMessage);
-    await zk.sendMessage(dest, { audio: { url: audio }, mimetype: 'audio/mp4' });
-
-  } else if (media.documentMessage) {
-    let document = await zk.downloadAndSaveMediaMessage(media.documentMessage);
-    await zk.sendMessage(dest, { document: { url: document }, mimetype: media.documentMessage.mimetype, fileName: media.documentMessage.fileName });
-
-  } else {
-    return repondre("*This media type is not supported.*");
-  }
-});
-
-zokou({ nomCom: "vv", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
-
+zokou({ nomCom: "vv6", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
   const { repondre, msgRepondu, superUser, auteurMessage } = commandeOptions;
 
   if (superUser) {
@@ -40,96 +9,99 @@ zokou({ nomCom: "vv", categorie: "Mods" }, async (dest, zk, commandeOptions) => 
 
       let msg;
 
-      // Handling Image Message
-      if (msgRepondu.imageMessage) {
-        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.imageMessage);
-        msg = {
-          image: { url: media },
-          caption: msgRepondu.imageMessage.caption || "",
-        };
-
-      // Handling Video Message
-      } else if (msgRepondu.videoMessage) {
-        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.videoMessage);
-        msg = {
-          video: { url: media },
-          caption: msgRepondu.videoMessage.caption || "",
-        };
-
-      // Handling Audio Message
-      } else if (msgRepondu.audioMessage) {
-        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.audioMessage);
-        msg = {
-          audio: { url: media },
-          mimetype: 'audio/mp4',
-        };
-
-      // Handling Sticker Message
-      } else if (msgRepondu.stickerMessage) {
-        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage);
-        let stickerMess = new Sticker(media, {
-          pack: 'Hans-MD-TAG',
-          type: StickerTypes.CROPPED,
-          categories: ["🤩", "🎉"],
-          id: "12345",
-          quality: 70,
-          background: "transparent",
-        });
-        const stickerBuffer = await stickerMess.toBuffer();
-        msg = { sticker: stickerBuffer };
-
-      } else {
-        // Handling other text messages
-        msg = { text: msgRepondu.conversation };
-      }
-
-      // Resend the media to the same chat (no redirection to another chat)
-      await zk.sendMessage(auteurMessage, msg);  // This sends back to the same chat
-
-    } else {
-      repondre('Mention the message that you want to save');
-    }
-
-  } else {
-    repondre('Only mods can use this command');
-  }
-});
-
-zokou({ nomCom: "vv5", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
-  const { repondre, msgRepondu, superUser, auteurMessage } = commandeOptions;
-
-  if (superUser) {
-
-    if (msgRepondu) {
-
-      let msg;
-
-      // Check if the message contains media
+      // Get the media content from the replied message
       const media = msgRepondu.message;
+
+      // Create a caption message for the resending media
+      const captionMessage = "Here is your View Once opened by Hans MD";
 
       // Handling Image Message
       if (media.imageMessage) {
-        // Download and save the image
-        let image = await zk.downloadAndSaveMediaMessage(media.imageMessage);
-        msg = {
-          image: { url: image },  // Send the downloaded image
-          caption: media.imageMessage.caption || "", // Include the caption if available
-        };
+        try {
+          // Download and save the image
+          let image = await zk.downloadAndSaveMediaMessage(media.imageMessage);
+          msg = {
+            image: { url: image },  // Send the downloaded image
+            caption: captionMessage + "\n" + (media.imageMessage.caption || ""), // Add the caption
+          };
+        } catch (error) {
+          return repondre("Error downloading image.");
+        }
 
-        // Resend the downloaded media to the same chat where it was opened
-        await zk.sendMessage(auteurMessage, msg);
+      // Handling Video Message
+      } else if (media.videoMessage) {
+        try {
+          // Download and save the video
+          let video = await zk.downloadAndSaveMediaMessage(media.videoMessage);
+          msg = {
+            video: { url: video },
+            caption: captionMessage + "\n" + (media.videoMessage.caption || ""),  // Add the caption
+          };
+        } catch (error) {
+          return repondre("Error downloading video.");
+        }
+
+      // Handling Audio Message
+      } else if (media.audioMessage) {
+        try {
+          // Download and save the audio
+          let audio = await zk.downloadAndSaveMediaMessage(media.audioMessage);
+          msg = {
+            audio: { url: audio },
+            mimetype: 'audio/mp4',
+          };
+        } catch (error) {
+          return repondre("Error downloading audio.");
+        }
+
+      // Handling Voice Message
+      } else if (media.voiceMessage) {
+        try {
+          // Download and save the voice message
+          let voice = await zk.downloadAndSaveMediaMessage(media.voiceMessage);
+          msg = {
+            audio: { url: voice },
+            mimetype: 'audio/ogg', // Voice messages are typically 'audio/ogg'
+          };
+        } catch (error) {
+          return repondre("Error downloading voice message.");
+        }
+
+      // Handling Sticker Message
+      } else if (media.stickerMessage) {
+        try {
+          // Download and save the sticker
+          let sticker = await zk.downloadAndSaveMediaMessage(media.stickerMessage);
+          msg = { sticker: sticker };
+        } catch (error) {
+          return repondre("Error downloading sticker.");
+        }
+
+      // Handling Document Message (Any other type of media that may be shared)
+      } else if (media.documentMessage) {
+        try {
+          // Download and save the document
+          let document = await zk.downloadAndSaveMediaMessage(media.documentMessage);
+          msg = {
+            document: { url: document },
+            caption: captionMessage + "\n" + (media.documentMessage.caption || ""),
+          };
+        } catch (error) {
+          return repondre("Error downloading document.");
+        }
 
       } else {
         return repondre("This type of media is not supported.");
       }
 
+      // Resend the downloaded media to the same chat where it was opened
+      await zk.sendMessage(auteurMessage, msg);
+
     } else {
-      repondre("Please reply to a View Once media message to download and resend it.");
+      repondre("Please reply to a media message to download and resend it.");
     }
 
   } else {
     repondre("Only mods can use this command.");
   }
 });
-
-        
