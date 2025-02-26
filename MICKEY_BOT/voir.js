@@ -1,6 +1,6 @@
 const { zokou } = require("../framework/zokou");
 
-zokou({ nomCom: "save", categorie: "General" }, async (dest, zk, commandeOptions) => {
+zokou({ nomCom: "save2", categorie: "General" }, async (dest, zk, commandeOptions) => {
   const { ms, repondre } = commandeOptions;
 
   if (!ms) {
@@ -29,3 +29,69 @@ zokou({ nomCom: "save", categorie: "General" }, async (dest, zk, commandeOptions
     return repondre("*This media type is not supported.*");
   }
 });
+
+zokou({ nomCom: "vv", categorie: "Mods" }, async (dest, zk, commandeOptions) => {
+
+  const { repondre, msgRepondu, superUser, auteurMessage } = commandeOptions;
+
+  if (superUser) {
+
+    if (msgRepondu) {
+
+      let msg;
+
+      // Handling Image Message
+      if (msgRepondu.imageMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.imageMessage);
+        msg = {
+          image: { url: media },
+          caption: msgRepondu.imageMessage.caption || "",
+        };
+
+      // Handling Video Message
+      } else if (msgRepondu.videoMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.videoMessage);
+        msg = {
+          video: { url: media },
+          caption: msgRepondu.videoMessage.caption || "",
+        };
+
+      // Handling Audio Message
+      } else if (msgRepondu.audioMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.audioMessage);
+        msg = {
+          audio: { url: media },
+          mimetype: 'audio/mp4',
+        };
+
+      // Handling Sticker Message
+      } else if (msgRepondu.stickerMessage) {
+        let media = await zk.downloadAndSaveMediaMessage(msgRepondu.stickerMessage);
+        let stickerMess = new Sticker(media, {
+          pack: 'Hans-MD-TAG',
+          type: StickerTypes.CROPPED,
+          categories: ["🤩", "🎉"],
+          id: "12345",
+          quality: 70,
+          background: "transparent",
+        });
+        const stickerBuffer = await stickerMess.toBuffer();
+        msg = { sticker: stickerBuffer };
+
+      } else {
+        // Handling other text messages
+        msg = { text: msgRepondu.conversation };
+      }
+
+      // Resend the media to the same chat (no redirection to another chat)
+      await zk.sendMessage(auteurMessage, msg);  // This sends back to the same chat
+
+    } else {
+      repondre('Mention the message that you want to save');
+    }
+
+  } else {
+    repondre('Only mods can use this command');
+  }
+});
+        
